@@ -96,6 +96,7 @@ import com.android.server.display.utils.SensorUtils;
 import com.android.server.display.whitebalance.DisplayWhiteBalanceController;
 import com.android.server.display.whitebalance.DisplayWhiteBalanceFactory;
 import com.android.server.display.whitebalance.DisplayWhiteBalanceSettings;
+import com.android.server.lights.LightsManager;
 import com.android.server.policy.WindowManagerPolicy;
 
 import java.io.PrintWriter;
@@ -241,6 +242,9 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
     // Battery stats.
     @Nullable
     private final IBatteryStats mBatteryStats;
+    
+    // The lights service.
+    private final LightsManager mLights;
 
     // The sensor manager.
     private final SensorManager mSensorManager;
@@ -537,6 +541,7 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
         }
 
         mSettingsObserver = new SettingsObserver(mHandler);
+        mLights = LocalServices.getService(LightsManager.class);
         mWindowManagerPolicy = LocalServices.getService(WindowManagerPolicy.class);
         mBlanker = blanker;
         mContext = context;
@@ -1370,6 +1375,13 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                 mDisplayBrightnessController.getIsUserSetScreenBrightnessUpdated();
         if (displayBrightnessState.getBrightnessEvent() != null) {
             mTempBrightnessEvent.copyFrom(displayBrightnessState.getBrightnessEvent());
+            mLights.getLight(LightsManager.LIGHT_ID_BUTTONS).setBrightness(brightnessState);
+        }
+
+        // Disable button lights when dozing
+        if (state == Display.STATE_DOZE || state == Display.STATE_DOZE_SUSPEND) {
+            mLights.getLight(LightsManager.LIGHT_ID_BUTTONS)
+                    .setBrightness(PowerManager.BRIGHTNESS_OFF_FLOAT);
         }
 
         boolean allowAutoBrightnessWhileDozing =
